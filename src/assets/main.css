@@ -1,0 +1,68 @@
+@import './base.css';
+
+#app {
+  min-height: 100vh;
+  font-weight: normal;
+}
+
+a {
+  color: inherit;
+}
+
+:root {
+  --datagrid-header-bg: #0d7ce2;
+  --datagrid-header-border: #0654a8;
+}
+
+:where(.report-card) .ant-card-head {
+  border-bottom: none;
+}
+
+:where(.report-card) .ant-card-head-title {
+  width: 100%;
+  text-align: center;
+  color: #0d7ce2;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+:where(.ant-table) .ant-table-thead > tr > th {
+  background: var(--datagrid-header-bg);
+  color: #fff;
+  font-weight: 600;
+  border-color: var(--datagrid-header-border);
+}
+
+:where(.blue-table) .ant-table {
+  border: 2px solid var(--datagrid-header-border);
+  border-radius: 8px;
+}
+
+:where(.blue-table) .ant-table-container {
+  border-radius: 8px;
+}
+
+:where(.blue-table) .ant-table-thead > tr > th {
+  border-color: var(--datagrid-header-border);
+}
+
+:where(.blue-table) .ant-table-cell {
+  border-color: #d1e3ff;
+}
+
+:where(.blue-table) .ant-table-tbody > tr.highlight-row > td {
+  background: var(--datagrid-header-bg);
+  color: #fff;
+  font-weight: 600;
+  border-color: var(--datagrid-header-border);
+}
+
+:where(.blue-table) .ant-table-tbody > tr.highlight-row:hover > td {
+  background: var(--datagrid-header-bg);
+}
+
+:where(.blue-table) .ant-table-tbody > tr.summary-total-row > td {
+  background: #ffe799;
+  color: #18426c;
+  border-color: #ffd45a;
+}
