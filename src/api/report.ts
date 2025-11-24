@@ -1,6 +1,14 @@
 import axios from 'axios'
 import dayjs from 'dayjs'
+// 引入数据类型定义
+import type { 
+  SummaryReportRow, 
+  DetailReportRow, 
+  CostcenterSummaryRow, 
+  FactorySummaryRow 
+} from '@/data/reportSamples'
 
+// --- 基础类型定义 ---
 export type DateRangeValue = [string, string] | []
 
 export interface ReportFilters {
@@ -45,124 +53,56 @@ export const defaultFilters: ReportFilters = {
   owner: 'all',
 }
 
+// --- Axios 实例 ---
 const apiClient = axios.create({
-  baseURL: '/api',
-  timeout: 10000,
+  baseURL: '/api', // 会自动通过 vite 代理转发到 https://localhost:7236/api
+  timeout: 20000,
 })
 
-const useMockData = import.meta.env.DEV
+// ==========================================
+// 1. 仪表盘相关接口 (Dashboard)
+// ==========================================
 
 export async function fetchReportSummaries(filters: ReportFilters): Promise<ReportSummary[]> {
-  if (!useMockData) {
-    const { data } = await apiClient.get<ReportSummary[]>('/reports', { params: filters })
-    return data
-  }
-
-  return mockRequest(() => buildMockSummaries(filters))
+  // 请求 /api/reports
+  const { data } = await apiClient.get<ReportSummary[]>('/reports', { 
+    params: {
+      region: filters.region,
+      owner: filters.owner
+    } 
+  })
+  return data
 }
 
 export async function fetchReportDetail(id: string): Promise<ReportDetail> {
-  if (!useMockData) {
-    const { data } = await apiClient.get<ReportDetail>(`/reports/${id}`)
-    return data
-  }
-
-  return mockRequest(() => buildMockDetail(id))
+  const { data } = await apiClient.get<ReportDetail>(`/reports/${id}`)
+  return data
 }
 
-async function mockRequest<T>(factory: () => T, delay = 400): Promise<T> {
-  await new Promise((resolve) => setTimeout(resolve, delay))
-  return factory()
+// ==========================================
+// 2. 业务报表相关接口 (Operational Forms)
+// ==========================================
+
+// 2.1 Detail Report
+export async function fetchDetailReportForm(params: { plant?: string, costCenter?: string }): Promise<DetailReportRow[]> {
+  const { data } = await apiClient.get<DetailReportRow[]>('/operational/detail', { params })
+  return data
 }
 
-function ensureRange(filters: ReportFilters): [string, string] {
-  if (filters.dateRange.length === 2) {
-    return filters.dateRange
-  }
-
-  const end = dayjs()
-  const start = end.subtract(6, 'month')
-  return [start.format('YYYY-MM-DD'), end.format('YYYY-MM-DD')]
+// 2.2 Summary Report
+export async function fetchSummaryReportForm(): Promise<SummaryReportRow[]> {
+  const { data } = await apiClient.get<SummaryReportRow[]>('/operational/summary')
+  return data
 }
 
-function buildMockSummaries(filters: ReportFilters): ReportSummary[] {
-  const [start, end] = ensureRange(filters)
-  const regions = filters.region === 'all' ? ['north', 'south', 'east', 'west'] : [filters.region]
-  const owners = filters.owner === 'all' ? ['Alice', 'Bob', 'Carol'] : [capitalize(filters.owner)]
-
-  return regions.flatMap((region, regionIndex) =>
-    owners.map((owner, ownerIndex) => {
-      const revenue = 200 + (regionIndex + 1) * 120 + ownerIndex * 60
-      const cost = revenue * 0.55
-      return {
-        id: `${region}-${ownerIndex}`,
-        name: `${region.toUpperCase()} ${owner} 报表`,
-        owner,
-        region,
-        updatedAt: end,
-        metrics: {
-          revenue,
-          cost,
-          profit: Number((revenue - cost).toFixed(2)),
-          growth: Number((5 + regionIndex * 2 - ownerIndex).toFixed(2)),
-        },
-      }
-    }),
-  )
+// 2.3 Cost Center Allocate
+export async function fetchCostCenterForm(params: { plant?: string }): Promise<CostcenterSummaryRow[]> {
+  const { data } = await apiClient.get<CostcenterSummaryRow[]>('/operational/costcenter', { params })
+  return data
 }
 
-function buildMockDetail(id: string): ReportDetail {
-  const base = buildMockSummaries({
-    dateRange: [],
-    owner: 'all',
-    region: 'all',
-  }).find((item) => item.id === id)
-
-  const summary: ReportSummary =
-    base ??
-    {
-      id,
-      name: '自定义报表',
-      owner: 'Alice',
-      region: 'north',
-      updatedAt: dayjs().format('YYYY-MM-DD'),
-      metrics: {
-        revenue: 400,
-        cost: 210,
-        profit: 190,
-        growth: 8.5,
-      },
-    }
-
-  const breakdown = ['线上', '线下', '直营', '渠道'].map((category, index) => ({
-    category,
-    value: Number((summary.metrics.revenue * (0.2 + index * 0.15)).toFixed(2)),
-  }))
-
-  const trend = Array.from({ length: 6 }).map((_, index) => ({
-    label: dayjs().subtract(5 - index, 'month').format('MM月'),
-    revenue: Number((summary.metrics.revenue * (0.7 + index * 0.05)).toFixed(2)),
-    cost: Number((summary.metrics.cost * (0.75 + index * 0.05)).toFixed(2)),
-  }))
-
-  const rows: ReportRow[] = ['A', 'B', 'C', 'D', 'E'].map((suffix, index) => ({
-    id: `${id}-row-${index}`,
-    product: `产品-${suffix}`,
-    channel: breakdown[index % breakdown.length]?.category ?? '线上',
-    revenue: Number((summary.metrics.revenue * (0.15 + index * 0.06)).toFixed(2)),
-    cost: Number((summary.metrics.cost * (0.12 + index * 0.05)).toFixed(2)),
-    profit: Number((summary.metrics.profit * (0.18 + index * 0.04)).toFixed(2)),
-    conversion: Number((40 + index * 5).toFixed(2)),
-  }))
-
-  return {
-    ...summary,
-    breakdown,
-    trend,
-    rows,
-  }
-}
-
-function capitalize(value: string) {
-  return value.charAt(0).toUpperCase() + value.slice(1)
+// 2.4 Factory Summary
+export async function fetchFactorySummaryForm(): Promise<FactorySummaryRow[]> {
+  const { data } = await apiClient.get<FactorySummaryRow[]>('/operational/factory')
+  return data
 }

@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { reactive, ref, onMounted } from 'vue'
 import dayjs from 'dayjs'
 import type { TableColumnsType } from 'ant-design-vue'
-import { detailReportRows, type DetailReportRow } from '@/data/reportSamples'
+import { fetchDetailReportForm } from '@/api/report' // 引入刚才写的 API
+import type { DetailReportRow } from '@/data/reportSamples'
 
 const filters = reactive({
   finalDate: dayjs(),
@@ -16,6 +17,7 @@ const filters = reactive({
   status: 'Final',
 })
 
+// 下拉框选项保持不变
 const plantOptions = ['All', 'AMBU', 'AMBU2', 'APABU-D2', 'DET01', 'DET06', 'DET07']
 const costCenterOptions = ['All', 'ACMC MFG', 'ACMC PE', 'Big Choke QA', 'CHP MFG', 'CPBG Central Purchasing']
 const factoryOptions = ['DET01', 'DET15', 'DET02', 'DET03', 'DET31', 'DET05', 'DET08', 'DET09', 'CPTH1', 'DET06', 'DET07']
@@ -46,11 +48,31 @@ const columns: TableColumnsType<DetailReportRow> = [
   { title: 'Qty', dataIndex: 'qty', width: 80 },
 ]
 
-const dataSource = ref(detailReportRows)
+// 数据源改为空数组，等待接口返回
+const dataSource = ref<DetailReportRow[]>([])
+const loading = ref(false) // 加载状态
 
-const handleSearch = () => {
-  console.log('Detail search', JSON.stringify(filters))
+// 搜索函数
+const handleSearch = async () => {
+  loading.value = true
+  try {
+    // 调用后端接口
+    const data = await fetchDetailReportForm({
+      plant: filters.plant,
+      costCenter: filters.costCenter
+    })
+    dataSource.value = data
+  } catch (error) {
+    console.error('Failed to fetch detail report:', error)
+  } finally {
+    loading.value = false
+  }
 }
+
+// 页面加载完毕后，自动查一次
+onMounted(() => {
+  handleSearch()
+})
 </script>
 
 <template>
@@ -100,43 +122,8 @@ const handleSearch = () => {
           </a-form-item>
         </a-col>
       </a-row>
-      <a-row :gutter="16">
-        <a-col :xs="24">
-          <a-form-item label="Factory">
-            <a-select
-              v-model:value="filters.factorySelection"
-              mode="multiple"
-              class="full-width"
-              placeholder="Select factories"
-            >
-              <a-select-option v-for="factory in factoryOptions" :key="factory" :value="factory">
-                {{ factory }}
-              </a-select-option>
-            </a-select>
-          </a-form-item>
-        </a-col>
-      </a-row>
-      <a-row :gutter="16">
-        <a-col :xs="24" :md="12">
-          <a-form-item label="Form Size">
-            <a-select v-model:value="filters.formSize" class="full-width">
-              <a-select-option v-for="size in sizeOptions" :key="size" :value="size">
-                {{ size }}
-              </a-select-option>
-            </a-select>
-          </a-form-item>
-        </a-col>
-        <a-col :xs="24" :md="12">
-          <a-form-item label="Status">
-            <a-select v-model:value="filters.status" class="full-width">
-              <a-select-option value="Draft">Draft</a-select-option>
-              <a-select-option value="Final">Final</a-select-option>
-            </a-select>
-          </a-form-item>
-        </a-col>
-      </a-row>
       <div class="actions">
-        <a-button type="primary" @click="handleSearch">Search</a-button>
+        <a-button type="primary" :loading="loading" @click="handleSearch">Search</a-button>
       </div>
     </a-card>
 
@@ -145,12 +132,13 @@ const handleSearch = () => {
         class="blue-table"
         :columns="columns"
         :data-source="dataSource"
+        :loading="loading" 
         :pagination="{ pageSize: 5 }"
         :scroll="{ x: 2200 }"
         bordered
       />
       <a-typography-paragraph class="remark">
-        表头字段覆盖 Master Data HR 与交易数据（Document、HR Date、Plant、Cost Center、Uniform Type 等），点击搜索后即可根据条件调阅。
+        数据来源：后端 SQL Server 数据库 (API: /api/operational/detail)
       </a-typography-paragraph>
     </a-card>
   </div>
@@ -162,18 +150,7 @@ const handleSearch = () => {
   flex-direction: column;
   gap: 16px;
 }
-
-.full-width {
-  width: 100%;
-}
-
-.actions {
-  text-align: right;
-  margin-top: 16px;
-}
-
-.remark {
-  margin-top: 16px;
-  color: #666;
-}
+.full-width { width: 100%; }
+.actions { text-align: right; margin-top: 16px; }
+.remark { margin-top: 16px; color: #666; }
 </style>

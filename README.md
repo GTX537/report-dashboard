@@ -1,4 +1,5 @@
 # report-dashboard
+<<<<<<< HEAD
 
 This template should help get you started developing with Vue 3 in Vite.
 
@@ -52,3 +53,6 @@ npm run test:unit
 ```sh
 npm run lint
 ```
+=======
+DET report USE
+>>>>>>> c4fdf491e4e753e308938fa314f929b0a5248108
